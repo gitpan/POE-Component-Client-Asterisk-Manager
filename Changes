@@ -1,9 +1,15 @@
 Revision history for Perl extension POE::Component::Client::Asterisk::Manager
 
-0.03 Mon Nov 24 11:09:00 PDT 2003
-	- Change my email address to xantus@cpan.org
-	- Turned off DEBUG (oops) 
-	- Added use tests
+0.04 Tue Oct 12 14:13:23 PDT 2004
+	- added :all to callbacks to catch all events
+	- fixed the docs
+	- added simple compile test
+	- depricated external dependency on POE::Filter::Asterisk::Manager (to be removed)
+	- added above mentioned filter to Manger.pm
+	- found a bug, events fired weren't getting anything in ARG0
+
+0.03 Mon Nov 24 ??:??:?? PDT 2003
+	- debug flag change
 
 0.02 Fri Sep 05 12:04:00 PDT 2003
 	- Removed test script until I can finish it

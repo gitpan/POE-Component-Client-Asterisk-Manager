@@ -2,14 +2,11 @@
 
 ######################################################################
 ### POE::Component::Client::Asterisk::Manager sample
-### David Davis (xantus [at] cpan.org)
-### $Id$
+### David Davis (xantus@cpan.org)
 ###
-### TODO:
-###
-### Copyright (c) 2003 David Davis and Teknikill.  All Rights Reserved.
-### This module is free software; you can redistribute it and/or
-### modify it under the same terms as Perl itself.
+### Copyright (c) 2003-2004 David Davis and Teknikill.  All Rights
+### Reserved. This module is free software; you can redistribute it
+### and/or modify it under the same terms as Perl itself.
 ######################################################################
 
 use strict;
@@ -27,17 +24,13 @@ POE::Component::Client::Asterisk::Manager->new(
 	CallBacks	=> {
 		ring => {
 			'Event' => 'Newchannel',
-			'State' => 'Ringing',
+			'State' => 'Ring',
 		},
 	},
 	inline_states => {
 		_connected => sub {
 			my $heap = $_[HEAP];
 			$heap->{server}->put({'Action' => 'Command','Command' => 'show channels'});
-		},
-		default => sub {
-			my $input = $_[ARG0];
-			# do something with $input	
 		},
 		ring => sub {
 			my $input = $_[ARG0];

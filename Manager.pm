@@ -2,24 +2,20 @@ package POE::Component::Client::Asterisk::Manager;
 
 ######################################################################
 ### POE::Component::Client::Asterisk::Manager
-### David Davis (xantus [at] cpan.org)
-### $Id$
+### David Davis (xantus@cpan.org)
 ###
-### Copyright (c) 2003 David Davis and Teknikill.  All Rights Reserved.
-### This module is free software; you can redistribute it and/or
-### modify it under the same terms as Perl itself.
+### Copyright (c) 2003-2004 David Davis and Teknikill.  All Rights
+### Reserved. This module is free software; you can redistribute it
+### and/or modify it under the same terms as Perl itself.
 ######################################################################
 
 use strict;
 use warnings;
 
-our @ISA = qw(Exporter);
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use Carp qw(croak);
-use POE::Session;
-use POE::Filter::Asterisk::Manager;
-use POE::Component::Client::TCP;
+use POE qw( Component::Client::TCP );
 use Digest::MD5;
 
 sub DEBUG { 0 }
@@ -45,6 +41,11 @@ sub new {
 			}
 		],
 		inline_states => $params{inline_states},
+#		{
+#			_default => sub {
+#				print STDERR "$_[STATE] called\n";
+#			},
+#		},
 	);
 
 	return 1;
@@ -68,6 +69,7 @@ sub _start {
 	$heap->{client} = POE::Component::Client::TCP->new(
 		RemoteAddress => $params{RemoteHost},
 		RemotePort => $params{RemotePort},
+		# no longer a seperate package - see below
 		Filter     => "POE::Filter::Asterisk::Manager",
 		Alias => "$params{Alias}_client",
 		Disconnected => sub {
@@ -75,23 +77,24 @@ sub _start {
 		},
 		Connected => sub {
 			my $heap = $_[HEAP];
-			DEBUG && print "connected to $params{RemoteHost}:$params{RemotePort} ...\n";
-			$heap->{_buffer} = [];
+			DEBUG && print STDERR "connected to $params{RemoteHost}:$params{RemotePort} ...\n";
 			$heap->{_connected} = 0;
 			$heap->{_logged_in} = 0;
 			$heap->{_auth_stage} = 0;
 			$_[KERNEL]->delay( recv_timeout => 5 );
 		},
 		ConnectError => sub {
-			DEBUG && print "could not connect to $params{RemoteHost}:$params{RemotePort}, reconnecting in $params{reconnect_time} seconds...\n";
+			DEBUG && print STDERR "could not connect to $params{RemoteHost}:$params{RemotePort}, reconnecting in $params{reconnect_time} seconds...\n";
 			$_[KERNEL]->delay(reconnect => $params{reconnect_time});
 		},
 
 		ServerInput => sub {
 			my ( $kernel, $heap, $input ) = @_[ KERNEL, HEAP, ARG0 ];
 
-			DEBUG && require Data::Dumper;
-			DEBUG && print Data::Dumper->Dump([$input],['input']);
+			DEBUG && do {
+				require Data::Dumper;
+				print Data::Dumper->Dump([$input],['input']);
+			};
 
 			if ($heap->{_logged_in} == 0 && $heap->{_connected} == 0) {
 				$_[KERNEL]->delay( recv_timeout => 5 );
@@ -104,19 +107,23 @@ sub _start {
 					$kernel->yield("shutdown");
 				}
 			} elsif ($heap->{_connected} == 1 && $heap->{_logged_in} == 0) {
-				$kernel->yield(login => splice(@_,ARG0) );
+				$kernel->yield(login => splice(@_,ARG0));
 			} elsif ($heap->{_logged_in} == 1) {
-				$kernel->yield(callbacks => splice(@_,ARG0) );
+				$kernel->yield(callbacks => splice(@_,ARG0));
 			}
 		},
 
 		InlineStates => {
 			_put => sub {
-				$_[HEAP]->{server}->put($_[ARG0]);
+				if ($_[HEAP]->{server}) {
+					$_[HEAP]->{server}->put($_[ARG0]);
+				} else {
+					print STDERR "cannot send when not connected! -ignored-\n";
+				}
 			},
 			login_complete => sub {
 				my ( $kernel, $heap ) = @_[ KERNEL, HEAP ];
-				DEBUG && print "logged in and ready to process events\n";
+				DEBUG && print STDERR "logged in and ready to process events\n";
 				# call the _connected state
 				$kernel->yield("_connected" => splice(@_,ARG0));
 			},
@@ -124,6 +131,8 @@ sub _start {
 				my ( $kernel, $heap ) = @_[ KERNEL, HEAP ];
 				unless ($heap->{_connected} == 1) {
 					print STDERR "Timeout waiting for response\n";
+					$heap->{_connected} = 0;
+					$heap->{_logged_in} = 0;
 					$kernel->yield("shutdown");
 				}
 			},
@@ -131,8 +140,8 @@ sub _start {
 				my ($kernel, $heap, $input) = @_[KERNEL,HEAP,ARG0];
 				if ($heap->{_logged_in} == 1) {
 					# shouldn't get here
-					DEBUG && print "Login called when already logged in\n";
-					$kernel->yield(callbacks => splice(@_,ARG0));
+					DEBUG && print STDERR "Login called when already logged in\n";
+					#$kernel->yield(callbacks => splice(@_,ARG0));
 					return;
 				}
 				if ($heap->{_auth_stage} == 0) {
@@ -170,48 +179,171 @@ sub _start {
 					if (ref($params{CallBacks}{$k}) eq 'HASH') {
 						foreach my $c (keys %{$params{CallBacks}{$k}}) {
 							last if ($match == 1);
-							if ($input->{$c} && $params{CallBacks}{$k}{$c} eq $input->{$c}) {
+							if (exists($input->{$c}) && $params{CallBacks}{$k}{$c} eq $input->{$c}) {
 								$match = 2;
 								$qual++;
 							} else {
 								$match = 1;
 							}
 						}
+						# matched ALL of the callback (not 2 of them like it looks like)
 						if ($match == 2) {
 							# callback good
-							DEBUG && print "callback $k is good\n";
-							$kernel->yield("$k" => splice(@_,ARG0));
+							DEBUG && print STDERR "callback $k is good\n";
+							$kernel->yield($k => $input);
 						}
+					} elsif ($params{CallBacks}{$k} eq ':all' || $params{CallBacks}{$k} eq 'default') {
+						$kernel->yield($k => $input);
 					} else {
-						print STDERR "Incorrectly written callback $k";
+						print STDERR "Incorrectly written callback $k\n";
 					}
 				}
-				if ($qual == 0) {
-					$kernel->yield("default" => splice(@_,ARG0));
-				}
+				# use the :all qualifier now
+				#if ($qual == 0) {
+				#	$kernel->yield("default" => splice(@_,ARG0));
+				#}
 			},
 		},
 	);
-	DEBUG && print "Client started.\n";
+	DEBUG && print STDERR "Client started.\n";
 }
 
 sub _stop {
 	$_[KERNEL]->yield("shutdown");
-	DEBUG && print "Client stopped.\n";
+	DEBUG && print STDERR "Client stopped.\n";
 }
 
 # Handle incoming signals (INT)
 
+# TODO disconnect gracefully
 sub signals {
 	my $signal_name = $_[ARG0];
 		
-	DEBUG && print "Client caught SIG$signal_name\n";
+#	DEBUG && print STDERR "Client caught SIG$signal_name\n";
+	
 	# do not handle the signal
 	return 0;
 }
 
 
 1;
+
+package POE::Filter::Asterisk::Manager;
+
+use strict;
+use Carp qw(croak);
+
+sub DEBUG { 0 };
+
+sub new {
+	my $type = shift;
+	my $self = {
+		buffer => '',
+		crlf => "\x0D\x0A",
+	};
+	bless $self, $type;
+	$self;
+}
+
+sub get {
+	my ($self, $stream) = @_;
+
+	# Accumulate data in a framing buffer.
+	$self->{buffer} .= join('', @$stream);
+
+	my $many = [];
+	while (1) {
+		my $input = $self->get_one([]);
+		if ($input) {
+			push(@$many,@$input);
+		} else {
+			last;
+		}
+	}
+
+	return $many;
+}
+
+sub get_one_start {
+	my ($self, $stream) = @_;
+
+	DEBUG && do {
+		my $temp = join '', @$stream;
+		$temp = unpack 'H*', $temp;
+		warn "got some raw data: $temp\n";
+	};
+
+	# Accumulate data in a framing buffer.
+	$self->{buffer} .= join('', @$stream);
+}
+
+sub get_one {
+	my $self = shift;
+
+	return [] if ($self->{finish});
+
+
+	if ($self->{buffer} =~ s#^Asterisk Call Manager/(\d+\.\d+)$self->{crlf}##is) {
+		return [{ acm_version => $1 }];
+	}
+
+	return [] unless ($self->{crlf});
+	my $crlf = $self->{crlf};
+
+	# collect lines in buffer until we find a double line
+	return [] unless($self->{buffer} =~ m/${crlf}${crlf}/s);
+
+
+	$self->{buffer} =~ s/(^.*?)(${crlf}${crlf})//s;
+
+	my $buf = "$1${crlf}";
+	
+	my $kv = {};
+
+	foreach my $line (split(/(:?${crlf})/,$buf)) {
+		my $tmp = $line;
+		$tmp =~ s/\r|\n//g;
+		next unless($tmp);
+		if ($line =~ m/([\w\-]+)\s*:\s*(.*)/) {
+			$kv->{$1} = $2;
+			DEBUG && print "recv key $1: $2\n";
+		} else {
+			$kv->{content} .= "$line";
+		}
+	}
+
+	return (keys %$kv) ? [$kv] : [];
+}
+
+sub put {
+	my ($self, $hrefs) = @_;
+	my @raw;
+	for my $i ( 0 .. $#{$hrefs} ) {
+		if (ref($hrefs->[$i]) eq 'HASH') {
+			foreach my $k (keys %{$hrefs->[$i]}) {
+				DEBUG && print "send key $k: $hrefs->[$i]{$k}\n";
+				push(@raw,"$k: $hrefs->[$i]{$k}$self->{crlf}");
+			}
+		} elsif (ref($hrefs->[$i]) eq 'ARRAY') {
+			push(@raw, join("$self->{crlf}", @{$hrefs->[$i]}, ""));
+		} elsif (ref($hrefs->[$i]) eq 'SCALAR') {
+			push(@raw, $hrefs->[$i]);
+		} else {
+			croak "unknown type ".ref($hrefs->[$i])." passed to ".__PACKAGE__."->put()";
+		}
+		push(@raw,"$self->{crlf}");
+	}
+	\@raw;
+}
+
+sub get_pending {
+	my $self = shift;
+	return [ $self->{buffer} ] if length $self->{buffer};
+	return undef;
+}
+
+1;
+
 __END__
 
 =head1 NAME
@@ -225,15 +357,26 @@ POE::Component::Client::Asterisk::Manager - Event-based Asterisk Manager Client
 
   POE::Component::Client::Asterisk::Manager->new(
 	Alias           => 'monitor',
-	ListenPort      => 5038, # default port
+	RemoteHost		=> 'localhost',
+	RemotePort      => 5038, # default port
 	CallBacks  => {
-		test => 'test',
+		intput => ':all',  # catchall for all manager events
+		ring => {
+			'Event' => 'Newchannel',
+			'State' => 'Ring',
+		},
 	},
 	inline_states => {
+		input => sub {
+			my $input = $_[ARG0];
+			# good for figuring out what manager events look like
+			require Data::Dumper;
+			print Data::Dumper->Dump([$input]);
+		},
 		ring => sub {
 			my $input = $_[ARG0];
 			# $input is a hash ref with info from 
-			print STDERR "RING! $input->{Channel}\n";
+			print STDERR "RING on channel $input->{Channel}\n";
 		},	
 	},
   );
@@ -242,33 +385,52 @@ POE::Component::Client::Asterisk::Manager - Event-based Asterisk Manager Client
 
 =head1 DESCRIPTION
 
-POE::Component::Client::Asterisk::Manager is an event driven Asterisk manager client
+POE::Component::Client::Asterisk::Manager is an event driven Asterisk manager
+client
 
-=head1 TODO
+=head1 METHODS
 
-=over 4
+=head2 new()
 
-=item *
+This method creates a POE::Component::Client::TCP session and works inside
+that session. You can specify the alias, host, port and inline_states.
+See the synopsis for an example.
 
-Clean house
+=head1 CALLBACKS
+
+Callbacks are events that meet a criteria specified in a hash ref
+
+For example:
+
+	ring => {
+		'Event' => 'Newchannel',
+		'State' => 'Ring',
+	},
+
+The event 'ring' will be called with a hash href in ARG0 when the component
+receives a manager event matching 'Newchannel' and manager state 'Ring'.
+
+You can specify a catch all event like this:
+
+	catch_all => ':all'
+
+Note: This was changed from 'default' to ':all' in an effort to make it more
+clear.  'default' will also work.
 
 =head1 BUGS
 
-Probably
+None known. Please report them to the author.
+
+=head1 EXAMPLES
+
+There are a few examples in the examples directory that can get you going.
 
 =head1 AUTHORS
 
 David Davis, E<lt>xantus@cpan.orgE<gt>
 
-=head1 COPYRIGHT AND LICENSE
-
-Copyright 2003 by David Davis and Teknikill Software
-
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
-
 =head1 SEE ALSO
 
-perl(1), POE::Filter::Asterisk::Manager.
+perl(1)
 
 =cut
