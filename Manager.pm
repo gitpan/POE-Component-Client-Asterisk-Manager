@@ -2,7 +2,7 @@ package POE::Component::Client::Asterisk::Manager;
 
 ######################################################################
 ### POE::Component::Client::Asterisk::Manager
-### David Davis (xantus [at] teknikill.net)
+### David Davis (xantus [at] cpan.org)
 ### $Id$
 ###
 ### Copyright (c) 2003 David Davis and Teknikill.  All Rights Reserved.
@@ -14,7 +14,7 @@ use strict;
 use warnings;
 
 our @ISA = qw(Exporter);
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Carp qw(croak);
 use POE::Session;
@@ -22,7 +22,7 @@ use POE::Filter::Asterisk::Manager;
 use POE::Component::Client::TCP;
 use Digest::MD5;
 
-sub DEBUG { 1 }
+sub DEBUG { 0 }
 
 sub new {
 	my $package = shift;
@@ -45,11 +45,6 @@ sub new {
 			}
 		],
 		inline_states => $params{inline_states},
-#		{
-#			_default => sub {
-#				print "$_[STATE] called\n";
-#			},
-#		},
 	);
 
 	return 1;
@@ -263,7 +258,14 @@ Probably
 
 =head1 AUTHORS
 
-David Davis, xantus [at] teknikill.net
+David Davis, E<lt>xantus@cpan.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2003 by David Davis and Teknikill Software
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 

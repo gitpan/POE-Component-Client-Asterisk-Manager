@@ -4,3 +4,4 @@ README
 MANIFEST
 Makefile.PL
 sample.pl
+t/1.t

@@ -1,7 +1,7 @@
 POE::Component::Client::Asterisk::Manager
 ---------------------------------------------------
-David Davis <xantus@teknikill.net>
-September 4, 2003
+David Davis <xantus@cpan.org>
+November 24, 2003
 
 About
 -----
@@ -20,7 +20,7 @@ Installation
 
 This package requires the following extra modules from CPAN:
 
-	Digest::MD5 - Used in the authentication process to login to the asterisk manager port.
+	Digest::MD5 - Used in the authentication process to login to the asterisk manager port. (v2.20)
 
 In addition, you will also need:
 

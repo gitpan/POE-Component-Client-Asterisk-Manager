@@ -2,7 +2,7 @@
 
 ######################################################################
 ### POE::Component::Client::Asterisk::Manager sample
-### David Davis (xantus [at] teknikill.net)
+### David Davis (xantus [at] cpan.org)
 ### $Id$
 ###
 ### TODO:
