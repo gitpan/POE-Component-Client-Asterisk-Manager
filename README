@@ -1,0 +1,37 @@
+POE::Component::Client::Asterisk::Manager
+---------------------------------------------------
+David Davis <xantus@teknikill.net>
+September 4, 2003
+
+About
+-----
+
+This module was born for a need to monitor and control Asterisk using POE.
+I use this module to collect stats using POE::Component::RRDTool.  I send
+timed calls to Asterisk and collect call stats that are then pushed into
+RRDTool for graphing in another interface.
+
+See POE::Filter::Asterisk::Manager also
+
+See the individual modules' documentation for more information.
+
+Installation
+------------
+
+This package requires the following extra modules from CPAN:
+
+	Digest::MD5 - Used in the authentication process to login to the asterisk manager port.
+
+In addition, you will also need:
+
+	POE::Filter::Asterisk::Manager
+
+You will need a recent version of POE (at least 0.12_03).
+
+The installation process is straightforward:
+
+  perl Makefile.PL
+  make test
+  make install
+
+The Makefile.PL does not take any extra arguments.
