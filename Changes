@@ -1,4 +1,8 @@
 Revision history for Perl extension POE::Component::Client::Asterisk::Manager
 
+0.02 Fri Sep 05 12:04:00 PDT 2003
+	- Removed test script until I can finish it
+	- Change Digest::MD5 version requirement to 2.20 instead of 2.25
+
 0.01 Thu Sep 04 11:20:00 PDT 2003
 	- First externally released version.

@@ -31,6 +31,7 @@ You will need a recent version of POE (at least 0.12_03).
 The installation process is straightforward:
 
   perl Makefile.PL
+  make
   make test
   make install
 
