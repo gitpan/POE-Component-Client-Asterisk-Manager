@@ -1,7 +1,6 @@
 POE::Component::Client::Asterisk::Manager
 ---------------------------------------------------
 David Davis <xantus@cpan.org>
-Written: September 4, 2003
 
 About
 -----
@@ -22,10 +21,6 @@ Installation
 This package requires the following extra modules from CPAN:
 
 	Digest::MD5 - Used in the authentication process to login to the asterisk manager port.
-
-In addition, you will also need:
-
-	POE::Filter::Asterisk::Manager
 
 You will need a recent version of POE (at least 0.12_03).
 

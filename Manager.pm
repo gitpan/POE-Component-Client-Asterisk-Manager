@@ -12,7 +12,7 @@ package POE::Component::Client::Asterisk::Manager;
 use strict;
 use warnings;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use Carp qw(croak);
 use POE qw( Component::Client::TCP );
@@ -60,6 +60,7 @@ sub _start {
 	}
 
 	$params{reconnect_time} = $params{reconnect_time} || 5;
+	$params{requeue_posts} = $params{requeue_posts} || undef;
 
 	$kernel->alias_set($params{Alias});
 
@@ -101,15 +102,15 @@ sub _start {
 				if ($input->{acm_version}) {
 					$heap->{_version} = $input->{acm_version};
 					$heap->{_connected} = 1;
-					$kernel->yield("login" => splice(@_,ARG0));
+					$kernel->call($_[SESSION] => login => splice(@_,ARG0));
 				} else {
 					print STDERR "Invalid Protocol (wrong port?)\n";
 					$kernel->yield("shutdown");
 				}
 			} elsif ($heap->{_connected} == 1 && $heap->{_logged_in} == 0) {
-				$kernel->yield(login => splice(@_,ARG0));
+				$kernel->call($_[SESSION] => login => splice(@_,ARG0));
 			} elsif ($heap->{_logged_in} == 1) {
-				$kernel->yield(callbacks => splice(@_,ARG0));
+				$kernel->call($_[SESSION] => callbacks => splice(@_,ARG0));
 			}
 		},
 
@@ -118,7 +119,11 @@ sub _start {
 				if ($_[HEAP]->{server}) {
 					$_[HEAP]->{server}->put($_[ARG0]);
 				} else {
-					print STDERR "cannot send when not connected! -ignored-\n";
+					if ($_[HEAP]->{requeue_posts}) {
+						push(@{$_[HEAP]->{queued}},$_[ARG0]);
+					} else {
+						print STDERR "cannot send when not connected! -ignored-\n";
+					}
 				}
 			},
 			login_complete => sub {
@@ -164,6 +169,12 @@ sub _start {
 						$heap->{_logged_in} = 1;
 						foreach my $k (keys %{$params{inline_states}}) {
 							$kernel->state( "$k" => $params{inline_states}{$k} );
+						}
+						if (ref($heap->{queued}) eq 'ARRAY') {
+							foreach my $a (@{$heap->{queued}}) {
+								$heap->{server}->put($a);
+							}
+							delete $heap->{queued};
 						}
 						$kernel->yield(login_complete => splice(@_,ARG0));
 					}
@@ -304,7 +315,7 @@ sub get_one {
 		my $tmp = $line;
 		$tmp =~ s/\r|\n//g;
 		next unless($tmp);
-		if ($line =~ m/([\w\-]+)\s*:\s*(.*)/) {
+		if ($line =~ m/([\w\-]+)\s*:\s+(.*)/) {
 			$kv->{$1} = $2;
 			DEBUG && print "recv key $1: $2\n";
 		} else {

@@ -1,5 +1,8 @@
 Revision history for Perl extension POE::Component::Client::Asterisk::Manager
 
+0.05 Thu Oct 28 18:00:00 PDT 2004
+	- added an undocumented param: requeue_posts
+
 0.04 Tue Oct 12 14:13:23 PDT 2004
 	- added :all to callbacks to catch all events
 	- fixed the docs

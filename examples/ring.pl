@@ -3,6 +3,8 @@
 ######################################################################
 ### POE::Component::Client::Asterisk::Manager sample
 ### David Davis (xantus@cpan.org)
+### 
+### Prints Ring and the channel that the ring was recieved on
 ###
 ### Copyright (c) 2003-2004 David Davis and Teknikill.  All Rights
 ### Reserved. This module is free software; you can redistribute it
