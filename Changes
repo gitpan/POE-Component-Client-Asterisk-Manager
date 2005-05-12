@@ -1,5 +1,11 @@
 Revision history for Perl extension POE::Component::Client::Asterisk::Manager
 
+0.06 Thu May 12 10:19:00 PDT 2005
+	- overhauled the ugly code
+	- removed INT handling, it wasn't doing anything
+	- added Aefirion
+	- improved docs
+	
 0.05 Thu Oct 28 18:00:00 PDT 2004
 	- added an undocumented param: requeue_posts
 
@@ -15,8 +21,8 @@ Revision history for Perl extension POE::Component::Client::Asterisk::Manager
 	- debug flag change
 
 0.02 Fri Sep 05 12:04:00 PDT 2003
-	- Removed test script until I can finish it
-	- Change Digest::MD5 version requirement to 2.20 instead of 2.25
+	- removed test script until I can finish it
+	- change Digest::MD5 version requirement to 2.20 instead of 2.25
 
 0.01 Thu Sep 04 11:20:00 PDT 2003
-	- First externally released version.
+	- first externally released version.

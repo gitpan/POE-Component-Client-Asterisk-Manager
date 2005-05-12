@@ -4,3 +4,4 @@ README
 MANIFEST
 Makefile.PL
 examples/ring.pl
+META.yml                                 Module meta-data (added by MakeMaker)
