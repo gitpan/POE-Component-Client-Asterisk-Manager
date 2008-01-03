@@ -13,8 +13,7 @@
 
 use strict;
 
-use POE;
-use POE::Component::Client::Asterisk::Manager;
+use POE qw( Component::Client::Asterisk::Manager );
 
 POE::Component::Client::Asterisk::Manager->new(
 #	Options		=> { trace => 1, default => 1 },

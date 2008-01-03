@@ -12,7 +12,7 @@ package POE::Component::Client::Asterisk::Manager;
 use strict;
 use warnings;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use Carp qw(croak);
 use POE qw( Component::Client::TCP );
@@ -87,6 +87,12 @@ sub _start {
 			$heap->{_logged_in} = 0;
 			$heap->{_auth_stage} = 0;
 			$_[KERNEL]->delay( recv_timeout => 5 );
+
+                      if ($heap->{params}->{Astmanproxy}) {
+                              # For astmanproxy?  Don't wait for a response
+                              $heap->{_connected} = 1;
+                              $kernel->call($_[SESSION] => login => splice(@_,ARG0));
+                      }
 		},
 		ConnectError => sub {
 			my $heap = $_[HEAP];
@@ -165,6 +171,12 @@ sub _start {
 						return;
 					}
 					if ($input->{Challenge}) {
+						if (! defined $heap->{params}->{Password}) {
+							print STDERR "No password provided\n";
+							$kernel->yield("shutdown");
+							return;
+						}
+
 						my $digest = Digest::MD5::md5_hex("$input->{Challenge}$heap->{params}->{Password}");
 						$heap->{server}->put({'Action' => 'Login', 'AuthType' => 'MD5', 'Username' => $heap->{params}->{Username}, 'Key' => $digest });
 						$heap->{_auth_stage} = 2;
@@ -184,6 +196,11 @@ sub _start {
 							delete $heap->{queued};
 						}
 						$kernel->yield(login_complete => splice(@_,ARG0));
+					} elsif ($input->{Message} && lc($input->{Message}) eq 'authentication failed') {
+						print STDERR "Authentication failed.\n";
+						$heap->{_connected} = 0;
+						$heap->{_logged_in} = 0;
+						$kernel->yield("shutdown");
 					}
 				}
 			},
@@ -301,7 +318,7 @@ sub get_one {
 	return [] if ($self->{finish});
 
 
-	if ($self->{buffer} =~ s#^(?:Asterisk|Aefirion) Call Manager/(\d+\.\d+)$self->{crlf}##is) {
+	if ($self->{buffer} =~ s#^(?:Asterisk|Aefirion) Call Manager(?: Proxy)?/(\d+\.\d+\w*)$self->{crlf}##is) {
 		return [{ acm_version => $1 }];
 	}
 
@@ -322,9 +339,22 @@ sub get_one {
 		my $tmp = $line;
 		$tmp =~ s/\r|\n//g;
 		next unless($tmp);
+
 		if ($line =~ m/([\w\-]+)\s*:\s+(.*)/) {
-			$kv->{$1} = $2;
-			DEBUG && print "recv key $1: $2\n";
+			my $key = $1;
+			my $val = $2;
+			DEBUG && print "recv key $key: $val\n";
+
+			if ($key eq 'Variable',) {
+				for my $v( split /\r/, $val ) {
+					$v =~ s/^Variable\:\s*//;
+					my @parts = split /=/, $v;
+					$kv->{$key}{$parts[0]} = $parts[1];
+					DEBUG && print "  recv variable: $parts[0] => $parts[1]\n";
+				}
+			} else {
+				$kv->{$key} = $val;
+			}
 		} else {
 			$kv->{content} .= "$line";
 		}
@@ -370,15 +400,14 @@ POE::Component::Client::Asterisk::Manager - Event-based Asterisk / Aefirion Mana
 
 =head1 SYNOPSIS
 
-  use POE::Session;
-  use POE::Component::Client::Asterisk::Manager;
+  use POE qw( Component::Client::Asterisk::Manager );
 
   POE::Component::Client::Asterisk::Manager->new(
 	Alias           => 'monitor',
 	RemoteHost		=> 'localhost',
 	RemotePort      => 5038, # default port
 	CallBacks  => {
-		intput => ':all',  # catchall for all manager events
+		input => ':all',  # catchall for all manager events
 		ring => {
 			'Event' => 'Newchannel',
 			'State' => 'Ring',

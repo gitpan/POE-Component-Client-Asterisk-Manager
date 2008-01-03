@@ -1,13 +1,14 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         POE-Component-Client-Asterisk-Manager
-version:      0.06
-version_from: Manager.pm
-installdirs:  site
-requires:
+--- #YAML:1.0
+name:                POE-Component-Client-Asterisk-Manager
+version:             0.07
+abstract:            ~
+license:             ~
+generated_by:        ExtUtils::MakeMaker version 6.36
+distribution_type:   module
+requires:     
     Digest::MD5:                   2.2
     POE:                           0.1203
     POE::Component::Client::TCP:   
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
+    version: 1.2
